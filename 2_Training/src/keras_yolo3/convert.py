@@ -185,22 +185,52 @@ def _main(args):
             if stride > 1:
                 # Darknet uses left and top padding instead of 'same' mode
                 prev_layer = ZeroPadding2D(((1, 0), (1, 0)))(prev_layer)
-            conv_layer = (
-                Conv2D(
-                    filters,
-                    (size, size),
-                    strides=(stride, stride),
-                    kernel_regularizer=l2(weight_decay),
-                    use_bias=not batch_normalize,
-                    weights=conv_weights,
-                    activation=act_fn,
-                    padding=padding,
+
+            # Create Conv2D layer instance
+            conv_layer_obj = Conv2D(
+                filters,
+                (size, size),
+                strides=(stride, stride),
+                kernel_regularizer=l2(weight_decay),
+                use_bias=not batch_normalize,
+                activation=act_fn,
+                padding=padding,
+            )
+
+            # Apply layer to get output tensor (this builds the layer)
+            conv_layer = conv_layer_obj(prev_layer)
+
+            # Set weights on the layer object after it's built (newer Keras API)
+            # For layers with batch_norm: weights = [kernel]
+            # For layers without batch_norm: weights = [kernel, bias]
+            try:
+                conv_layer_obj.set_weights(conv_weights)
+            except Exception as e:
+                print(f"Warning: Could not set weights for Conv2D layer: {e}")
+                print(
+                    f"  Layer: {section}, Weights shape: {[w.shape for w in conv_weights]}"
                 )
-            )(prev_layer)
+                raise
 
             if batch_normalize:
-                conv_layer = (BatchNormalization(weights=bn_weight_list))(conv_layer)
-            prev_layer = conv_layer
+                # Create BatchNormalization layer
+                bn_layer_obj = BatchNormalization()
+                bn_layer = bn_layer_obj(conv_layer)
+                # Set batch normalization weights after layer is built
+                # BN weights: [gamma, beta, moving_mean, moving_variance]
+                try:
+                    bn_layer_obj.set_weights(bn_weight_list)
+                except Exception as e:
+                    print(
+                        f"Warning: Could not set weights for BatchNormalization layer: {e}"
+                    )
+                    print(
+                        f"  Layer: {section}, Weights shape: {[w.shape for w in bn_weight_list]}"
+                    )
+                    raise
+                prev_layer = bn_layer
+            else:
+                prev_layer = conv_layer
 
             if activation == "linear":
                 all_layers.append(prev_layer)
