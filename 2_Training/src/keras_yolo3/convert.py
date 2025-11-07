@@ -128,7 +128,7 @@ def _main(args):
 
             weights_shape = (size, size, prev_layer_shape[-1], filters)
             darknet_w_shape = (filters, weights_shape[2], size, size)
-            weights_size = np.product(weights_shape)
+            weights_size = np.prod(weights_shape)
 
             print(
                 "conv2d", "bn" if batch_normalize else "  ", activation, weights_shape
