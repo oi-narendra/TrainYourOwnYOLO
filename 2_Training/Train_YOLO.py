@@ -4,6 +4,8 @@ Retrain the YOLO model for your own dataset.
 """
 
 import os
+# Disable XLA compilation to avoid issues with dynamic tensor operations in YOLO loss
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_auto_jit=0'
 import sys
 import argparse
 import warnings
