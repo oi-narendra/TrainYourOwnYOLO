@@ -21,7 +21,6 @@ def convert_vott_csv_to_yolo(
     target_name="data_train.txt",
     abs_path=False,
 ):
-
     # Encode labels according to labeldict if code's don't exist
     if not "code" in vott_df.columns:
         vott_df["code"] = vott_df["label"].apply(lambda x: labeldict[x])

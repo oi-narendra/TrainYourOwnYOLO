@@ -8,18 +8,13 @@ import os
 from timeit import default_timer as timer
 
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.layers import Input
 from PIL import Image, ImageFont, ImageDraw
 
 from .yolo3.model import yolo_eval, yolo_body, tiny_yolo_body
 from .yolo3.utils import letterbox_image
-import os
-from tensorflow.keras.utils import multi_gpu_model
-import tensorflow.compat.v1 as tf
-import tensorflow.python.keras.backend as K
-
-tf.disable_eager_execution()
 
 
 class YOLO(object):
@@ -45,8 +40,8 @@ class YOLO(object):
         self.__dict__.update(kwargs)  # and update with user overrides
         self.class_names = self._get_class()
         self.anchors = self._get_anchors()
-        self.sess = K.get_session()
-        self.boxes, self.scores, self.classes = self.generate()
+        self.yolo_model = None
+        self.generate()
 
     def _get_class(self):
         classes_path = os.path.expanduser(self.classes_path)
@@ -89,9 +84,9 @@ class YOLO(object):
         else:
             assert self.yolo_model.layers[-1].output_shape[-1] == num_anchors / len(
                 self.yolo_model.output
-            ) * (
-                num_classes + 5
-            ), "Mismatch between model and given anchor and class sizes"
+            ) * (num_classes + 5), (
+                "Mismatch between model and given anchor and class sizes"
+            )
 
         end = timer()
         print(
@@ -121,20 +116,6 @@ class YOLO(object):
             )  # Shuffle colors to decorrelate adjacent classes.
             np.random.seed(None)  # Reset seed to default.
 
-        # Generate output tensor targets for filtered bounding boxes.
-        self.input_image_shape = K.placeholder(shape=(2,))
-        if self.gpu_num >= 2:
-            self.yolo_model = multi_gpu_model(self.yolo_model, gpus=self.gpu_num)
-        boxes, scores, classes = yolo_eval(
-            self.yolo_model.output,
-            self.anchors,
-            len(self.class_names),
-            self.input_image_shape,
-            score_threshold=self.score,
-            iou_threshold=self.iou,
-        )
-        return boxes, scores, classes
-
     def detect_image(self, image, show_stats=True):
         start = timer()
 
@@ -154,14 +135,25 @@ class YOLO(object):
         image_data /= 255.0
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
 
-        out_boxes, out_scores, out_classes = self.sess.run(
-            [self.boxes, self.scores, self.classes],
-            feed_dict={
-                self.yolo_model.input: image_data,
-                self.input_image_shape: [image.size[1], image.size[0]],
-                K.learning_phase(): 0,
-            },
+        # Use TF 2.x native prediction
+        yolo_outputs = self.yolo_model.predict(image_data, verbose=0)
+
+        # Process outputs with yolo_eval using TF functions
+        image_shape = tf.constant([image.size[1], image.size[0]], dtype=tf.float32)
+        boxes, scores, classes = yolo_eval(
+            yolo_outputs,
+            self.anchors,
+            len(self.class_names),
+            image_shape,
+            score_threshold=self.score,
+            iou_threshold=self.iou,
         )
+
+        # Convert tensors to numpy arrays
+        out_boxes = boxes.numpy()
+        out_scores = scores.numpy()
+        out_classes = classes.numpy()
+
         if show_stats:
             print("Found {} boxes for {}".format(len(out_boxes), "img"))
         out_prediction = []
@@ -179,7 +171,9 @@ class YOLO(object):
 
             label = "{} {:.2f}".format(predicted_class, score)
             draw = ImageDraw.Draw(image)
-            label_size = draw.textsize(label, font)
+            # Use getbbox instead of deprecated textsize
+            label_bbox = draw.textbbox((0, 0), label, font=font)
+            label_size = (label_bbox[2] - label_bbox[0], label_bbox[3] - label_bbox[1])
 
             top, left, bottom, right = box
             top = max(0, np.floor(top + 0.5).astype("int32"))
@@ -222,7 +216,12 @@ class YOLO(object):
         return out_prediction, image
 
     def close_session(self):
-        self.sess.close()
+        # No longer needed with TF 2.x eager execution
+        # Clear the model to free memory
+        if self.yolo_model is not None:
+            del self.yolo_model
+            self.yolo_model = None
+        tf.keras.backend.clear_session()
 
 
 def detect_video(yolo, video_path, output_path=""):

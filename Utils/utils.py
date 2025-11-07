@@ -79,8 +79,8 @@ def load_extractor_model(model_name="InceptionV3", flavor=1):
         For VGG16, it only changes the input size, {0: 224 (default), 1: 128, 2: 64}."""
     start = timer()
     if model_name == "InceptionV3":
-        from keras.applications.inception_v3 import InceptionV3
-        from keras.applications.inception_v3 import preprocess_input
+        from tensorflow.keras.applications.inception_v3 import InceptionV3
+        from tensorflow.keras.applications.inception_v3 import preprocess_input
 
         model = InceptionV3(weights="imagenet", include_top=False)
 
@@ -92,8 +92,8 @@ def load_extractor_model(model_name="InceptionV3", flavor=1):
         input_shape = (299, 299, 3) if flavor == 0 else (200, 200, 3)
 
     elif model_name == "VGG16":
-        from keras.applications.vgg16 import VGG16
-        from keras.applications.vgg16 import preprocess_input
+        from tensorflow.keras.applications.vgg16 import VGG16
+        from tensorflow.keras.applications.vgg16 import preprocess_input
 
         model_out = VGG16(weights="imagenet", include_top=False)
         input_length = [224, 128, 64][flavor]
@@ -185,7 +185,7 @@ def features_from_image(img_array, model, preprocess, batch_size=100):
 
     steps = len(img_array) // batch_size + 1
     img_gen = chunks(img_array, batch_size, preprocessing_function=preprocess)
-    features = model.predict_generator(img_gen, steps=steps)
+    features = model.predict(img_gen, steps=steps, verbose=0)
 
     # if the generator has looped past end of array, cut it down
     features = features[: len(img_array)]
@@ -324,7 +324,9 @@ def draw_annotated_box(image, box_list_list, label_list, color_list):
             thelabel = "{}".format(label)
             if len(box) > 4:
                 thelabel += " {:.2f}".format(box[-1])
-            label_size = draw.textsize(thelabel, font)
+            # Use getbbox instead of deprecated textsize
+            label_bbox = draw.textbbox((0, 0), thelabel, font=font)
+            label_size = (label_bbox[2] - label_bbox[0], label_bbox[3] - label_bbox[1])
 
             xmin, ymin, xmax, ymax = box[:4]
             ymin = max(0, np.floor(ymin + 0.5).astype("int32"))

@@ -3,7 +3,6 @@ MODIFIED FROM keras-yolo3 PACKAGE, https://github.com/qqwweee/keras-yolo3
 Retrain the YOLO model for your own dataset.
 """
 
-
 import os
 import sys
 
@@ -21,7 +20,8 @@ src_path = os.path.join(get_parent_dir(2), "src")
 sys.path.append(src_path)
 
 import numpy as np
-import tensorflow.keras.backend as K
+import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.layers import Input, Lambda
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
@@ -66,7 +66,7 @@ def create_model(
     weights_path="keras_yolo3/model_data/yolo_weights.h5",
 ):
     """create the training model"""
-    K.clear_session()  # get a new session
+    tf.keras.backend.clear_session()  # get a new session
     image_input = Input(shape=(None, None, 3))
     h, w = input_shape
     num_anchors = len(anchors)
@@ -128,7 +128,7 @@ def create_tiny_model(
     weights_path="keras_yolo3/model_data/tiny_yolo_weights.h5",
 ):
     """create the training model, for Tiny YOLOv3"""
-    K.clear_session()  # get a new session
+    tf.keras.backend.clear_session()  # get a new session
     image_input = Input(shape=(None, None, 3))
     h, w = input_shape
     num_anchors = len(anchors)

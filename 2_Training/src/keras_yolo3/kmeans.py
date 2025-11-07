@@ -43,7 +43,6 @@ class YOLO_Kmeans:
             np.random.choice(box_number, k, replace=False)
         ]  # init k clusters
         while True:
-
             distances = 1 - self.iou(boxes, clusters)
 
             current_nearest = np.argmin(distances, axis=1)

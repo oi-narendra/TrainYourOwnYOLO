@@ -31,7 +31,7 @@ def letterbox_image(image, size):
     nw = int(iw * scale)
     nh = int(ih * scale)
 
-    image = image.resize((nw, nh), Image.BICUBIC)
+    image = image.resize((nw, nh), Image.Resampling.BICUBIC)
     new_image = Image.new("RGB", size, (128, 128, 128))
     new_image.paste(image, ((w - nw) // 2, (h - nh) // 2))
     return new_image
@@ -78,7 +78,7 @@ def get_random_data(
         dy = (h - nh) // 2
         image_data = 0
         if proc_img:
-            image = image.resize((nw, nh), Image.BICUBIC)
+            image = image.resize((nw, nh), Image.Resampling.BICUBIC)
             new_image = Image.new("RGB", (w, h), (128, 128, 128))
             new_image.paste(image, (dx, dy))
             image_data = np.array(new_image) / 255.0
@@ -104,7 +104,7 @@ def get_random_data(
     else:
         nw = int(scale * w)
         nh = int(nw / new_ar)
-    image = image.resize((nw, nh), Image.BICUBIC)
+    image = image.resize((nw, nh), Image.Resampling.BICUBIC)
 
     # place image
     dx = int(rand(0, w - nw))
