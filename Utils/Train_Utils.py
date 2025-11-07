@@ -198,18 +198,36 @@ def data_generator(annotation_lines, batch_size, input_shape, anchors, num_class
         image_data = np.array(image_data)
         box_data = np.array(box_data)
         y_true = preprocess_true_boxes(box_data, input_shape, anchors, num_classes)
-        yield [image_data, *y_true], np.zeros(batch_size)
+        # Yield as tuple for TensorFlow 2.x compatibility
+        yield (image_data, *y_true), np.zeros(batch_size)
 
 
 def data_generator_wrapper(
     annotation_lines, batch_size, input_shape, anchors, num_classes
 ):
+    import tensorflow as tf
     n = len(annotation_lines)
     if n == 0 or batch_size <= 0:
         return None
-    return data_generator(
-        annotation_lines, batch_size, input_shape, anchors, num_classes
+    
+    # Create proper tf.data.Dataset for TensorFlow 2.x
+    # YOLO has 1 image input + 3 y_true inputs (for 3 scales), and outputs dummy zeros
+    def gen():
+        return data_generator(annotation_lines, batch_size, input_shape, anchors, num_classes)
+    
+    dataset = tf.data.Dataset.from_generator(
+        gen,
+        output_signature=(
+            (
+                tf.TensorSpec(shape=(batch_size, input_shape[0], input_shape[1], 3), dtype=tf.float32),  # images
+                tf.TensorSpec(shape=(batch_size, input_shape[0]//32, input_shape[1]//32, 3, num_classes+5), dtype=tf.float32),  # y_true[0]
+                tf.TensorSpec(shape=(batch_size, input_shape[0]//16, input_shape[1]//16, 3, num_classes+5), dtype=tf.float32),  # y_true[1]
+                tf.TensorSpec(shape=(batch_size, input_shape[0]//8, input_shape[1]//8, 3, num_classes+5), dtype=tf.float32),   # y_true[2]
+            ),
+            tf.TensorSpec(shape=(batch_size,), dtype=tf.float32)  # dummy zeros
+        )
     )
+    return dataset
 
 
 def ChangeToOtherMachine(filelist, repo="TrainYourOwnYOLO", remote_machine=""):

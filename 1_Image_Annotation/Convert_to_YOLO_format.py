@@ -25,6 +25,8 @@ VoTT_Folder = os.path.join(
 )
 VoTT_csv = os.path.join(VoTT_Folder, "Annotations-export.csv")
 YOLO_filename = os.path.join(VoTT_Folder, "data_train.txt")
+# Images are in the parent folder, not in vott-csv-export
+Training_Images_Folder = os.path.join(Data_Folder, "Source_Images", "Training_Images")
 
 model_folder = os.path.join(Data_Folder, "Model_Weights")
 classes_filename = os.path.join(model_folder, "data_classes.txt")
@@ -65,7 +67,8 @@ if __name__ == "__main__":
     labels = multi_df["label"].unique()
     labeldict = dict(zip(labels, range(len(labels))))
     multi_df.drop_duplicates(subset=None, keep="first", inplace=True)
-    train_path = FLAGS.VoTT_Folder
+    # Use Training_Images_Folder instead of VoTT_Folder for image paths
+    train_path = Training_Images_Folder
     convert_vott_csv_to_yolo(
         multi_df, labeldict, path=train_path, target_name=FLAGS.YOLO_filename
     )
